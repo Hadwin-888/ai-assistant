@@ -514,17 +514,72 @@
       <div class="panel" id="panel-ppt">
         <div class="panel-content">
           <h2>📑 PPT 生成</h2>
-          <p style="color: var(--text-secondary); margin-bottom: 16px;">输入主题，AI 自动生成 PPT 大纲并下载</p>
-          <div>
-            <label style="display: block; margin-bottom: 8px; font-size: 14px;">PPT 主题</label>
+          <p style="color: var(--text-secondary); margin-bottom: 16px;">上传文档或输入主题，AI 自动生成 PPT</p>
+
+          <!-- 上传文档 -->
+          <div style="margin-top: 16px;">
+            <label style="display: block; margin-bottom: 8px; font-size: 14px;">📎 参考文档（可选）</label>
+            <input type="file" id="pptFile" accept=".pdf,.doc,.docx,.txt" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); padding: 12px; font-size: 14px;">
+          </div>
+
+          <!-- PPT 主题 -->
+          <div style="margin-top: 16px;">
+            <label style="display: block; margin-bottom: 8px; font-size: 14px;">📝 PPT 主题</label>
             <input type="text" id="pptTopic" placeholder="例如：2024年公司年度报告" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); padding: 12px; font-size: 14px;">
           </div>
+
+          <!-- 演示场景 -->
           <div style="margin-top: 16px;">
-            <label style="display: block; margin-bottom: 8px; font-size: 14px;">页数</label>
-            <input type="number" id="pptPages" value="10" min="1" max="50" style="width: 100px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); padding: 12px; font-size: 14px;">
+            <label style="display: block; margin-bottom: 8px; font-size: 14px;">🎬 演示场景</label>
+            <select id="pptScene" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); padding: 12px; font-size: 14px;">
+              <option value="通用场景">通用场景</option>
+              <option value="商业计划">商业计划</option>
+              <option value="工作汇报">工作汇报</option>
+              <option value="教育培训">教育培训</option>
+              <option value="产品发布">产品发布</option>
+              <option value="项目路演">项目路演</option>
+            </select>
           </div>
+
+          <!-- 受众 -->
           <div style="margin-top: 16px;">
-            <button class="send-btn" onclick="generatePPT()" style="width: auto; padding: 0 24px;">生成 PPT</button>
+            <label style="display: block; margin-bottom: 8px; font-size: 14px;">👥 目标受众</label>
+            <select id="pptAudience" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); padding: 12px; font-size: 14px;">
+              <option value="大众">大众</option>
+              <option value="企业高管">企业高管</option>
+              <option value="专业技术人员">专业技术人员</option>
+              <option value="学生">学生</option>
+              <option value="投资者">投资者</option>
+            </select>
+          </div>
+
+          <!-- 语言 -->
+          <div style="margin-top: 16px;">
+            <label style="display: block; margin-bottom: 8px; font-size: 14px;">🌐 语言</label>
+            <select id="pptLang" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); padding: 12px; font-size: 14px;">
+              <option value="zh">中文</option>
+              <option value="en">English</option>
+              <option value="zh-Hant">繁体中文</option>
+              <option value="ja">日本語</option>
+            </select>
+          </div>
+
+          <!-- 页数 -->
+          <div style="margin-top: 16px; display: flex; gap: 16px;">
+            <div style="flex: 1;">
+              <label style="display: block; margin-bottom: 8px; font-size: 14px;">📄 页数</label>
+              <input type="number" id="pptPages" value="10" min="1" max="50" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); padding: 12px; font-size: 14px;">
+            </div>
+          </div>
+
+          <!-- 风格要求 -->
+          <div style="margin-top: 16px;">
+            <label style="display: block; margin-bottom: 8px; font-size: 14px;">✨ 风格要求（可选）</label>
+            <input type="text" id="pptStyle" placeholder="如：简约、时尚、商务、科技、创意" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); padding: 12px; font-size: 14px;">
+          </div>
+
+          <div style="margin-top: 16px;">
+            <button class="send-btn" onclick="generatePPT()" style="width: auto; padding: 12px 32px;">生成 PPT</button>
           </div>
           <div id="pptResult" style="margin-top: 20px;"></div>
         </div>
@@ -773,18 +828,36 @@
     async function generatePPT() {
       const topic = document.getElementById('pptTopic').value.trim();
       const pages = document.getElementById('pptPages').value;
-      if (!topic) return alert('请输入 PPT 主题');
-      
+      const scene = document.getElementById('pptScene').value;
+      const audience = document.getElementById('pptAudience').value;
+      const lang = document.getElementById('pptLang').value;
+      const style = document.getElementById('pptStyle').value.trim();
+      const fileInput = document.getElementById('pptFile');
+      const file = fileInput.files[0];
+
+      // 验证：需要有主题或文件
+      if (!topic && !file) {
+        return alert('请输入PPT主题或上传参考文档');
+      }
+
       const resultDiv = document.getElementById('pptResult');
-      resultDiv.innerHTML = '<div class="typing"><span></span><span></span><span></span></div> 生成中...';
-      
+      resultDiv.innerHTML = '<div class="typing"><span></span><span></span><span></span></div> 生成中...（可能需要30秒-1分钟）';
+
       try {
+        const formData = new FormData();
+        if (topic) formData.append('topic', topic);
+        formData.append('pages', pages);
+        formData.append('scene', scene);
+        formData.append('audience', audience);
+        formData.append('lang', lang);
+        if (style) formData.append('style', style);
+        if (file) formData.append('file', file);
+
         const response = await fetch(BASE_PATH + '/api/ppt/generate', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ topic, pages: parseInt(pages) })
+          body: formData
         });
-        
+
         const data = await response.json();
         if (data.success) {
           resultDiv.innerHTML = `<p style="color: #4ade80;">✅ PPT 生成成功！</p>
@@ -794,7 +867,7 @@
           resultDiv.innerHTML = '<p style="color: #e94560;">❌ ' + data.error + '</p>';
         }
       } catch (err) {
-        resultDiv.innerHTML = '<p style="color: #e94560;">❌ 网络错误</p>';
+        resultDiv.innerHTML = '<p style="color: #e94560;">❌ 网络错误: ' + err.message + '</p>';
       }
     }
   </script>
