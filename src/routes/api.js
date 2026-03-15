@@ -217,6 +217,7 @@ router.post('/ppt/generate', upload.single('file'), async (req, res) => {
     const pptOptions = {
       title: topic ? topic.trim() : 'PPT演示',
       length,
+      pages: pages ? parseInt(pages) : 10,
       scene: scene || '通用场景',
       audience: audience || '大众',
       lang: lang || 'zh',
