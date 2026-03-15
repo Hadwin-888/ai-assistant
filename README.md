@@ -17,7 +17,8 @@
 - **文件对比**: 上传两个文件进行差异对比
 
 ### 3. PPT 生成 (PPT Generation)
-- 根据主题自动生成 PPT 演示文稿
+- 根据用户上传的文档,以及用户需要生成的风格，使用文多多AiPPT自动生成 PPT 演示文稿，文多多的API key:ak_sJJCB5EppsrFr8pfuC
+- 文多多Ai PPT创建接口Token为：https://open.docmee.cn/api/user/createApiToken
 
 ### 4. AI 对话 (AI Chat)
 - 通用 AI 对话功能

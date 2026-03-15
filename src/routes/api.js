@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const minimaxService = require('../services/minimax');
 const fileParser = require('../services/fileParser');
-const { generatePPT } = require('../services/pptGenerator');
+const { generatePPT, downloadPPT } = require('../services/pptGenerator');
 
 const router = express.Router();
 
@@ -174,58 +174,81 @@ router.post('/data/compare-files', upload.array('files', 2), async (req, res) =>
   }
 });
 
-// 生成PPT
-router.post('/ppt/generate', async (req, res) => {
+// 生成PPT - 使用文多多 AiPPT API (支持文件上传)
+router.post('/ppt/generate', upload.single('file'), async (req, res) => {
+  let uploadedFilePath = null;
   try {
-    const { topic, pages, outline } = req.body;
+    const { topic, pages, outline, scene, audience, lang, prompt, style } = req.body;
 
-    let pptOutline = outline;
+    // 验证主题（如果提供了文件，则主题可以为空）
+    if (!req.file && !topic) {
+      return res.status(400).json({ error: '请提供PPT主题或上传参考文档' });
+    }
 
-    // 如果没有提供大纲，则AI生成
-    if (!pptOutline) {
-      // 验证主题
-      const topicError = validateString(topic, 'PPT主题', MAX_TOPIC_LENGTH);
-      if (topicError) {
-        return res.status(400).json({ error: topicError });
-      }
+    // 处理上传的文件
+    if (req.file) {
+      uploadedFilePath = req.file.path;
+      console.log('已上传文件:', req.file.originalname, '大小:', req.file.size);
+    }
 
-      // 验证页数
-      const pageNum = parseInt(pages) || 10;
-      if (pageNum < MIN_PAGES || pageNum > MAX_PAGES) {
-        return res.status(400).json({ error: `页数必须在${MIN_PAGES}到${MAX_PAGES}之间` });
-      }
-
-      pptOutline = await minimaxService.generatePPTOutline(topic.trim(), pageNum);
-    } else {
-      // 验证大纲长度
-      const outlineError = validateString(outline, 'PPT大纲', MAX_TEXT_LENGTH);
-      if (outlineError) {
-        return res.status(400).json({ error: outlineError });
+    // 映射页数到篇幅长度
+    let length = 'medium';
+    if (pages) {
+      const pageNum = parseInt(pages);
+      if (pageNum <= 15) {
+        length = 'short';
+      } else if (pageNum <= 25) {
+        length = 'medium';
+      } else {
+        length = 'long';
       }
     }
-    
+
     // 生成PPT文件
     const outputDir = path.join(__dirname, '../../outputs');
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
-    
+
     const filename = `ppt-${Date.now()}.pptx`;
     const outputPath = path.join(outputDir, filename);
-    
-    await generatePPT(pptOutline, outputPath);
-    
-    // 返回文件路径
-    res.json({ 
-      success: true, 
+
+    // 构建生成选项
+    const pptOptions = {
+      title: topic ? topic.trim() : 'PPT演示',
+      length,
+      scene: scene || '通用场景',
+      audience: audience || '大众',
+      lang: lang || 'zh',
+      prompt: prompt || outline || style || '',
+      outputPath,
+      filePath: uploadedFilePath
+    };
+
+    console.log('开始生成PPT，选项:', JSON.stringify(pptOptions));
+
+    // 调用文多多 API 生成 PPT
+    const result = await generatePPT(pptOptions);
+
+    // 返回结果
+    res.json({
+      success: true,
       result: {
+        taskId: result.taskId,
         filename,
-        path: outputPath,
-        url: `/outputs/${filename}`
+        url: `/outputs/${filename}`,
+        message: result.message
       }
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  } finally {
+    // 清理上传文件
+    if (uploadedFilePath) {
+      fs.unlink(uploadedFilePath, (err) => {
+        if (err) console.error('清理上传文件失败:', err.message);
+      });
+    }
   }
 });
 
