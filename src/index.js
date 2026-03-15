@@ -164,11 +164,34 @@ app.get('/', (req, res) => {
           <!-- PPT生成 -->
           <div class="card">
             <h2>📑 PPT生成</h2>
-            <p>输入主题，AI自动生成演示文稿</p>
-            <input type="text" id="pptTopic" placeholder="输入PPT主题">
-            <input type="number" id="pptPages" placeholder="页数 (默认10页)" value="10">
+            <p>上传文档或输入主题，AI自动生成演示文稿</p>
+            <input type="file" id="pptFile" accept=".pdf,.doc,.docx,.txt">
+            <input type="text" id="pptTopic" placeholder="输入PPT主题（可选）">
+            <select id="pptScene">
+              <option value="通用场景">通用场景</option>
+              <option value="商业计划">商业计划</option>
+              <option value="工作汇报">工作汇报</option>
+              <option value="教育培训">教育培训</option>
+              <option value="产品发布">产品发布</option>
+              <option value="项目路演">项目路演</option>
+            </select>
+            <select id="pptAudience">
+              <option value="大众">大众</option>
+              <option value="企业高管">企业高管</option>
+              <option value="专业技术人员">专业</option>
+              <option value="学生">学生</option>
+              <option value="投资者">投资者</option>
+            </select>
+            <select id="pptLang">
+              <option value="zh">中文</option>
+              <option value="en">English</option>
+              <option value="zh-Hant">繁体中文</option>
+              <option value="ja">日本語</option>
+            </select>
+            <input type="number" id="pptPages" placeholder="页数" value="10">
+            <input type="text" id="pptStyle" placeholder="风格要求（如：简约、时尚、商务）">
             <button onclick="generatePPT()">生成PPT</button>
-            <div class="loading" id="pptLoading">处理中...</div>
+            <div class="loading" id="pptLoading">处理中...（可能需要30秒-1分钟）</div>
             <div class="result" id="pptResult"></div>
           </div>
           
@@ -282,22 +305,40 @@ app.get('/', (req, res) => {
         async function generatePPT() {
           const topic = document.getElementById('pptTopic').value;
           const pages = parseInt(document.getElementById('pptPages').value) || 10;
+          const scene = document.getElementById('pptScene').value;
+          const audience = document.getElementById('pptAudience').value;
+          const lang = document.getElementById('pptLang').value;
+          const style = document.getElementById('pptStyle').value;
+          const fileInput = document.getElementById('pptFile');
+          const file = fileInput.files[0];
           const resultEl = document.getElementById('pptResult');
           const loadingEl = document.getElementById('pptLoading');
-          
-          if (!topic) { alert('请输入PPT主题'); return; }
-          
+
+          // 验证：需要有主题或文件
+          if (!topic && !file) {
+            alert('请输入PPT主题或上传参考文档');
+            return;
+          }
+
           loadingEl.classList.add('show');
           resultEl.classList.remove('show');
-          
+
           try {
+            const formData = new FormData();
+            if (topic) formData.append('topic', topic);
+            formData.append('pages', pages);
+            formData.append('scene', scene);
+            formData.append('audience', audience);
+            formData.append('lang', lang);
+            if (style) formData.append('style', style);
+            if (file) formData.append('file', file);
+
             const res = await fetch('/api/ppt/generate', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ topic, pages })
+              body: formData
             });
             const data = await res.json();
-            
+
             if (data.success) {
               resultEl.innerHTML = 'PPT生成成功！<br><a href="' + data.result.url + '" download>点击下载</a>';
             } else {
@@ -308,7 +349,7 @@ app.get('/', (req, res) => {
             resultEl.textContent = '错误: ' + err.message;
             resultEl.classList.add('show');
           }
-          
+
           loadingEl.classList.remove('show');
         }
         
