@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 助手</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    :root {
+      --bg-primary: #1a1a2e;
+      --bg-secondary: #16213e;
+      --bg-tertiary: #0f3460;
+      --accent: #e94560;
+      --text-primary: #eee;
+      --text-secondary: #aaa;
+      --border: #2a2a4a;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+    }
+    
+    .app {
+      display: flex;
+      height: 100vh;
+    }
+    
+    /* 左侧边栏 */
+    .sidebar {
+      width: 260px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+    }
+    
+    .logo {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--accent);
+      padding: 12px 0;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, #e94560, #ff6b6b);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+    
+    .nav-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 12px 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      text-align: left;
+      margin-bottom: 8px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .nav-btn:hover {
+      background: var(--bg-tertiary);
+      border-color: var(--accent);
+    }
+    
+    .nav-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    
+    .nav-icon {
+      font-size: 16px;
+    }
+    
+    /* 聊天历史列表 */
+    .chat-list {
+      flex: 1;
+      overflow-y: auto;
+      margin-top: 20px;
+    }
+    
+    .chat-list-title {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .chat-item {
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: all 0.2s;
+    }
+    
+    .chat-item:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+    
+    .chat-item.active {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+    
+    /* 右侧主区域 */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-primary);
+    }
+    
+    /* 顶部 */
+    .header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .header-title {
+      font-size: 16px;
+      font-weight: 500;
+    }
+    
+    .header-actions {
+      display: flex;
+      gap: 12px;
+    }
+    
+    .header-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    
+    .header-btn:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+    
+    /* 聊天区域 */
+    .chat-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 24px;
+    }
+    
+    .message {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .message.user {
+      flex-direction: row-reverse;
+    }
+    
+    .message-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    
+    .message.ai .message-avatar {
+      background: linear-gradient(135deg, #e94560, #ff6b6b);
+    }
+    
+    .message.user .message-avatar {
+      background: var(--bg-tertiary);
+    }
+    
+    .message-content {
+      max-width: 70%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    
+    .message.ai .message-content {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+    }
+    
+    .message.user .message-content {
+      background: var(--accent);
+    }
+    
+    .typing {
+      display: flex;
+      gap: 4px;
+      padding: 12px 16px;
+    }
+    
+    .typing span {
+      width: 8px;
+      height: 8px;
+      background: var(--text-secondary);
+      border-radius: 50%;
+      animation: bounce 1.4s infinite ease-in-out;
+    }
+    
+    .typing span:nth-child(1) { animation-delay: 0s; }
+    .typing span:nth-child(2) { animation-delay: 0.2s; }
+    .typing span:nth-child(3) { animation-delay: 0.4s; }
+    
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+    
+    /* 底部输入区 */
+    .input-container {
+      padding: 16px 24px 24px;
+      border-top: 1px solid var(--border);
+    }
+    
+    .input-wrapper {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+      transition: all 0.2s;
+    }
+    
+    .input-wrapper:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(233, 69, 96, 0.1);
+    }
+    
+    .input-wrapper textarea {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      font-size: 14px;
+      resize: none;
+      outline: none;
+      max-height: 150px;
+      line-height: 1.5;
+      font-family: inherit;
+    }
+    
+    .input-wrapper textarea::placeholder {
+      color: var(--text-secondary);
+    }
+    
+    .send-btn {
+      background: var(--accent);
+      border: none;
+      color: white;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    
+    .send-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 12px rgba(233, 69, 96, 0.4);
+    }
+    
+    .send-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    
+    /* 功能面板 */
+    .panel {
+      display: none;
+      padding: 20px;
+    }
+    
+    .panel.active {
+      display: block;
+    }
+    
+    .panel h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+      color: var(--text-primary);
+    }
+    
+    .panel-content {
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    
+    /* 欢迎页 */
+    .welcome {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+      padding: 40px;
+    }
+    
+    .welcome-icon {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #e94560, #ff6b6b);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      margin-bottom: 24px;
+    }
+    
+    .welcome h2 {
+      font-size: 28px;
+      margin-bottom: 12px;
+    }
+    
+    .welcome p {
+      color: var(--text-secondary);
+      font-size: 14px;
+      max-width: 400px;
+    }
+    
+    /* 响应式 */
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .message-content { max-width: 85%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- 左侧边栏 -->
+    <div class="sidebar">
+      <div class="logo">
+        <div class="logo-icon">🤖</div>
+        <span>AI 助手</span>
+      </div>
+      
+      <button class="nav-btn active" onclick="showChat()">
+        <span class="nav-icon">💬</span>
+        <span>AI 对话</span>
+      </button>
+      
+      <button class="nav-btn" onclick="showPanel('contract')">
+        <span class="nav-icon">📄</span>
+        <span>合同审核</span>
+      </button>
+      
+      <button class="nav-btn" onclick="showPanel('data')">
+        <span class="nav-icon">📊</span>
+        <span>数据对比</span>
+      </button>
+      
+      <button class="nav-btn" onclick="showPanel('ppt')">
+        <span class="nav-icon">📑</span>
+        <span>PPT 生成</span>
+      </button>
+      
+      <div class="chat-list">
+        <div class="chat-list-title">历史记录</div>
+        <div id="chatList"></div>
+      </div>
+    </div>
+    
+    <!-- 右侧主区域 -->
+    <div class="main">
+      <div class="header">
+        <div class="header-title" id="headerTitle">AI 对话</div>
+        <div class="header-actions">
+          <button class="header-btn" onclick="clearChat()" title="清空对话">🗑️</button>
+        </div>
+      </div>
+      
+      <!-- AI 对话面板 -->
+      <div class="panel active" id="panel-chat">
+        <div class="chat-container" id="chatContainer">
+          <div class="welcome" id="welcome">
+            <div class="welcome-icon">✨</div>
+            <h2>有什么可以帮你的？</h2>
+            <p>输入消息开始对话，你可以问我任何问题，或者使用左侧功能进行合同审核、数据对比等操作。</p>
+          </div>
+        </div>
+        
+        <div class="input-container">
+          <div class="input-wrapper">
+            <textarea 
+              id="messageInput" 
+              placeholder="输入消息..." 
+              rows="1"
+              onkeydown="handleKeyDown(event)"
+            ></textarea>
+            <button class="send-btn" onclick="sendMessage()" id="sendBtn">➤</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 合同审核面板 -->
+      <div class="panel" id="panel-contract">
+        <div class="panel-content">
+          <h2>📄 合同审核</h2>
+          <p style="color: var(--text-secondary); margin-bottom: 16px;">上传合同文件或输入合同文本，AI 将自动分析风险点</p>
+          <textarea 
+            id="contractInput" 
+            placeholder="请输入合同文本..." 
+            style="width: 100%; height: 200px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); padding: 12px; font-size: 14px; resize: vertical;"
+          ></textarea>
+          <div style="margin-top: 16px; display: flex; gap: 12px;">
+            <button class="send-btn" onclick="reviewContractText()" style="width: auto; padding: 0 24px;">开始审核</button>
+            <label class="nav-btn" style="margin: 0; cursor: pointer;">
+              📎 上传文件
+              <input type="file" id="contractFile" accept=".pdf,.doc,.docx,.txt" style="display: none;" onchange="reviewContractFile(this)">
+            </label>
+          </div>
+          <div id="contractResult" style="margin-top: 20px;"></div>
+        </div>
+      </div>
+      
+      <!-- 数据对比面板 -->
+      <div class="panel" id="panel-data">
+        <div class="panel-content">
+          <h2>📊 数据对比</h2>
+          <p style="color: var(--text-secondary); margin-bottom: 16px;">对比两组数据，找出差异并分析原因（支持上传 Excel 文件）</p>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+            <div>
+              <label style="display: block; margin-bottom: 8px; font-size: 14px;">第一组数据</label>
+              <textarea id="data1" placeholder="输入第一组数据..." style="width: 100%; height: 120px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); padding: 12px; font-size: 14px; resize: vertical;"></textarea>
+              <label class="nav-btn" style="margin-top: 8px; display: inline-flex; cursor: pointer;">
+                📎 上传 Excel
+                <input type="file" id="dataFile1" accept=".xlsx,.xls,.csv" style="display: none;" onchange="loadExcelData(this, 1)">
+              </label>
+              <span id="file1Name" style="margin-left: 8px; font-size: 12px; color: var(--text-secondary);"></span>
+            </div>
+            <div>
+              <label style="display: block; margin-bottom: 8px; font-size: 14px;">第二组数据</label>
+              <textarea id="data2" placeholder="输入第二组数据..." style="width: 100%; height: 120px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); padding: 12px; font-size: 14px; resize: vertical;"></textarea>
+              <label class="nav-btn" style="margin-top: 8px; display: inline-flex; cursor: pointer;">
+                📎 上传 Excel
+                <input type="file" id="dataFile2" accept=".xlsx,.xls,.csv" style="display: none;" onchange="loadExcelData(this, 2)">
+              </label>
+              <span id="file2Name" style="margin-left: 8px; font-size: 12px; color: var(--text-secondary);"></span>
+            </div>
+          </div>
+          
+          <div style="margin-top: 16px;">
+            <button class="send-btn" onclick="compareData()" style="width: auto; padding: 0 24px;">开始对比</button>
+          </div>
+          <div id="dataResult" style="margin-top: 20px;"></div>
+        </div>
+      </div>
+      
+      <!-- PPT 生成面板 -->
+      <div class="panel" id="panel-ppt">
+        <div class="panel-content">
+          <h2>📑 PPT 生成</h2>
+          <p style="color: var(--text-secondary); margin-bottom: 16px;">输入主题，AI 自动生成 PPT 大纲并下载</p>
+          <div>
+            <label style="display: block; margin-bottom: 8px; font-size: 14px;">PPT 主题</label>
+            <input type="text" id="pptTopic" placeholder="例如：2024年公司年度报告" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); padding: 12px; font-size: 14px;">
+          </div>
+          <div style="margin-top: 16px;">
+            <label style="display: block; margin-bottom: 8px; font-size: 14px;">页数</label>
+            <input type="number" id="pptPages" value="10" min="1" max="50" style="width: 100px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); padding: 12px; font-size: 14px;">
+          </div>
+          <div style="margin-top: 16px;">
+            <button class="send-btn" onclick="generatePPT()" style="width: auto; padding: 0 24px;">生成 PPT</button>
+          </div>
+          <div id="pptResult" style="margin-top: 20px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 支持反向代理的 base path（用于 /ai-assistant/ 等路径部署）
+    const BASE_PATH = '';
+
+    let chatHistory = [];
+    let currentChat = null;
+    
+    // 显示聊天面板
+    function showChat() {
+      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.closest('.nav-btn').classList.add('active');
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-chat').classList.add('active');
+      document.getElementById('headerTitle').textContent = 'AI 对话';
+    }
+    
+    // 显示功能面板
+    function showPanel(panel) {
+      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.closest('.nav-btn').classList.add('active');
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-' + panel).classList.add('active');
+      document.getElementById('headerTitle').textContent = panel === 'contract' ? '合同审核' : panel === 'data' ? '数据对比' : 'PPT 生成';
+    }
+    
+    // 发送消息
+    async function sendMessage() {
+      const input = document.getElementById('messageInput');
+      const message = input.value.trim();
+      if (!message) return;
+      
+      // 隐藏欢迎页
+      document.getElementById('welcome').style.display = 'none';
+      
+      // 添加用户消息
+      addMessage(message, 'user');
+      input.value = '';
+      
+      // 添加 AI 消息占位符
+      const aiMessage = addMessage('', 'ai', true);
+      
+      // 禁用发送按钮
+      document.getElementById('sendBtn').disabled = true;
+      
+      try {
+        const response = await fetch(BASE_PATH + '/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          // 隐藏 typing 动画，显示回复内容
+          const contentEl = aiMessage.querySelector('.message-content');
+          contentEl.style.display = 'block';
+          contentEl.textContent = data.result;
+        } else {
+          const contentEl = aiMessage.querySelector('.message-content');
+          contentEl.style.display = 'block';
+          contentEl.textContent = '❌ ' + data.error;
+        }
+      } catch (err) {
+        const contentEl = aiMessage.querySelector('.message-content');
+        contentEl.style.display = 'block';
+        contentEl.textContent = '❌ 网络错误，请重试';
+      }
+      
+      document.getElementById('sendBtn').disabled = false;
+      scrollToBottom();
+    }
+    
+    // 添加消息到界面
+    function addMessage(content, type, isTyping = false) {
+      const container = document.getElementById('chatContainer');
+      const div = document.createElement('div');
+      div.className = `message ${type}`;
+      
+      let contentHtml = '';
+      if (isTyping) {
+        contentHtml = `<div class="message-content" style="display:none;"><div class="typing"><span></span><span></span><span></span></div></div>`;
+      } else {
+        contentHtml = `<div class="message-content">${escapeHtml(content)}</div>`;
+      }
+      
+      div.innerHTML = `
+        <div class="message-avatar">${type === 'ai' ? '🤖' : '👤'}</div>
+        ${contentHtml}
+      `;
+      
+      container.appendChild(div);
+      scrollToBottom();
+      return div;
+    }
+    
+    // 转义 HTML
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
+    // 滚动到底部
+    function scrollToBottom() {
+      const container = document.getElementById('chatContainer');
+      container.scrollTop = container.scrollHeight;
+    }
+    
+    // 键盘发送
+    function handleKeyDown(event) {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendMessage();
+      }
+    }
+    
+    // 清空对话
+    function clearChat() {
+      document.getElementById('chatContainer').innerHTML = `
+        <div class="welcome" id="welcome">
+          <div class="welcome-icon">✨</div>
+          <h2>有什么可以帮你的？</h2>
+          <p>输入消息开始对话，你可以问我任何问题，或者使用左侧功能进行合同审核、数据对比等操作。</p>
+        </div>
+      `;
+    }
+    
+    // 合同审核 - 文本
+    async function reviewContractText() {
+      const text = document.getElementById('contractInput').value.trim();
+      if (!text) return alert('请输入合同文本');
+      
+      const resultDiv = document.getElementById('contractResult');
+      resultDiv.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+      
+      try {
+        const response = await fetch(BASE_PATH + '/api/contract/review-text', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          resultDiv.innerHTML = `<div class="message ai"><div class="message-avatar">🤖</div><div class="message-content">${escapeHtml(data.result)}</div></div>`;
+        } else {
+          resultDiv.innerHTML = '<p style="color: #e94560;">❌ ' + data.error + '</p>';
+        }
+      } catch (err) {
+        resultDiv.innerHTML = '<p style="color: #e94560;">❌ 网络错误</p>';
+      }
+    }
+    
+    // 合同审核 - 文件
+    async function reviewContractFile(input) {
+      const file = input.files[0];
+      if (!file) return;
+      
+      const resultDiv = document.getElementById('contractResult');
+      resultDiv.innerHTML = '<div class="typing"><span></span><span></span><span></span></div> 上传中...';
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      try {
+        const response = await fetch(BASE_PATH + '/api/contract/review-file', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          resultDiv.innerHTML = `<div class="message ai"><div class="message-avatar">🤖</div><div class="message-content">${escapeHtml(data.result)}</div></div>`;
+        } else {
+          resultDiv.innerHTML = '<p style="color: #e94560;">❌ ' + data.error + '</p>';
+        }
+      } catch (err) {
+        resultDiv.innerHTML = '<p style="color: #e94560;">❌ 网络错误</p>';
+      }
+    }
+    
+    // 数据对比
+    async function compareData() {
+      const data1 = document.getElementById('data1').value.trim();
+      const data2 = document.getElementById('data2').value.trim();
+      if (!data1 || !data2) return alert('请输入两组数据');
+      
+      const resultDiv = document.getElementById('dataResult');
+      resultDiv.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+      
+      try {
+        const response = await fetch(BASE_PATH + '/api/data/compare-text', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data1, data2 })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          resultDiv.innerHTML = `<div class="message ai"><div class="message-avatar">🤖</div><div class="message-content">${escapeHtml(data.result)}</div></div>`;
+        } else {
+          resultDiv.innerHTML = '<p style="color: #e94560;">❌ ' + data.error + '</p>';
+        }
+      } catch (err) {
+        resultDiv.innerHTML = '<p style="color: #e94560;">❌ 网络错误</p>';
+      }
+    }
+    
+    // 加载 Excel 数据
+    function loadExcelData(input, num) {
+      const file = input.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+          
+          // 转换为字符串
+          let textData = '';
+          jsonData.forEach(row => {
+            textData += row.join('\t') + '\n';
+          });
+          
+          document.getElementById('data' + num).value = textData;
+          document.getElementById('file' + num + 'Name').textContent = '✓ ' + file.name;
+        } catch (err) {
+          alert('读取 Excel 文件失败: ' + err.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+    
+    // PPT 生成
+    async function generatePPT() {
+      const topic = document.getElementById('pptTopic').value.trim();
+      const pages = document.getElementById('pptPages').value;
+      if (!topic) return alert('请输入 PPT 主题');
+      
+      const resultDiv = document.getElementById('pptResult');
+      resultDiv.innerHTML = '<div class="typing"><span></span><span></span><span></span></div> 生成中...';
+      
+      try {
+        const response = await fetch(BASE_PATH + '/api/ppt/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ topic, pages: parseInt(pages) })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          resultDiv.innerHTML = `<p style="color: #4ade80;">✅ PPT 生成成功！</p>
+            <p>文件名：${data.result.filename}</p>
+            <a href="${data.result.url}" style="color: #e94560;" download>点击下载</a>`;
+        } else {
+          resultDiv.innerHTML = '<p style="color: #e94560;">❌ ' + data.error + '</p>';
+        }
+      } catch (err) {
+        resultDiv.innerHTML = '<p style="color: #e94560;">❌ 网络错误</p>';
+      }
+    }
+  </script>
+</body>
+</html>

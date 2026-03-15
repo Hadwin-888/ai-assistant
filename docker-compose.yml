@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  ai-assistant:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./outputs:/app/outputs
+    environment:
+      - NODE_ENV=production
+      - MINIMAX_API_KEY=${MINIMAX_API_KEY}
+      - MINIMAX_BASE_URL=${MINIMAX_BASE_URL}
+    restart: unless-stopped
